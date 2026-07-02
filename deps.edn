@@ -1,0 +1,17 @@
+{:paths ["resources"]
+ :deps {org.clojure/clojure {:mvn/version "1.12.0"}
+        ;; ongaku craft lib (ADR-2607023000) — BGM 選定 + ライセンスポリシー gate。
+        ;; この repo は private カタログ実体（DOVA/incompetech 由来 asset 台帳と
+        ;; チャンネル roster）だけを持つ。
+        io.github.kotoba-lang/ongaku {:git/url "https://github.com/kotoba-lang/ongaku"
+                                      :git/sha "117b4fe178ec4dfda55ea7de18a3fc4cd95a899d"}}
+ :aliases
+ {;; Workspace development — use the local lib checkout (no git fetch).
+  :dev
+  {:override-deps
+   {io.github.kotoba-lang/ongaku {:local/root "../../kotoba-lang/ongaku"}}}
+
+  :test {:extra-paths ["test"]
+         :extra-deps {io.github.cognitect-labs/test-runner
+                      {:git/tag "v0.5.1" :git/sha "dfb30dd"}}
+         :main-opts ["-m" "cognitect.test-runner"]}}}
