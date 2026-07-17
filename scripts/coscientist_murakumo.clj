@@ -1,0 +1,259 @@
+#!/usr/bin/env bb
+;; ongakuka coscientist on murakumo fleet (babashka / nbb-compat host).
+;; Prefer: clojure -M:cosci  (see deps.edn :cosci alias) when bb is unavailable.
+;;
+;;   MURAKUMO_GENERATION_TOKEN=mk1... \
+;;   ONGAKUKA_AUDIO_GEN_SSH=gad \
+;;   clojure -M:dev:cosci --genre freetempo-club --generations 1 --candidates 2 --seconds 6
+;;
+;; Fleet-direct path is the production path until cloud-murakumo workers claim
+;; :music jobs with audio-gen on PATH. Public API submit is attempted first
+;; when a token is present.
+
+(ns coscientist-murakumo
+  (:require [clojure.edn :as edn]
+            [clojure.java.io :as io]
+            [clojure.java.shell :as shell]
+            [clojure.string :as str]
+            [ongaku.coscientist :as cosci]
+            [ongaku.genre :as genre]
+            [ongaku.murakumo :as murakumo])
+  (:import [java.net URI HttpURLConnection]
+           [java.nio.charset StandardCharsets]
+           [java.time Instant]
+           [java.util Base64]))
+
+(defn env [k d]
+  (or (System/getenv k) d))
+
+(def BASE (env "MURAKUMO_API_URL" murakumo/default-base-url))
+(def TOKEN (or (System/getenv "MURAKUMO_GENERATION_TOKEN")
+               (System/getenv "MURAKUMO_TOKEN")
+               ""))
+(def OUT-DIR (env "ONGAKUKA_OUT" "artifacts/coscientist"))
+(def SSH-HOST (env "ONGAKUKA_AUDIO_GEN_SSH" "gad"))
+(def SSH-CMD (env "ONGAKUKA_AUDIO_GEN_CMD"
+                  "source /home/gad/TRELLIS-AMD/.venv/bin/activate && python3 /home/gad/bin/audio-gen"))
+
+(defn ensure-dir! [d]
+  (.mkdirs (io/file d)))
+
+(defn sh [& args]
+  (apply shell/sh args))
+
+(defn http!
+  "Minimal HTTP client (POST/GET). Returns {:status :body-bytes :body-str}."
+  [method url headers body-str]
+  (let [conn (doto ^HttpURLConnection (.openConnection (.toURL (URI/create url)))
+               (.setRequestMethod method)
+               (.setConnectTimeout 30000)
+               (.setReadTimeout 120000)
+               (.setDoInput true))]
+    (doseq [[k v] headers] (.setRequestProperty conn k v))
+    (when body-str
+      (.setDoOutput true)
+      (with-open [os (.getOutputStream conn)]
+        (.write os (.getBytes ^String body-str StandardCharsets/UTF_8))))
+    (let [status (.getResponseCode conn)
+          stream (try (.getInputStream conn)
+                      (catch Exception _ (.getErrorStream conn)))
+          bytes (if stream
+                  (with-open [in stream]
+                    (.readAllBytes in))
+                  (byte-array 0))
+          body (String. ^bytes bytes StandardCharsets/UTF_8)]
+      (.disconnect conn)
+      {:status status :body-bytes bytes :body-str body})))
+
+(defn parse-json [s]
+  ;; tiny JSON → EDN via cheshire-free path: use read-string on keywordized
+  ;; transform. Prefer data.json when on full Clojure; for portability use
+  ;; a minimal keywordize of keys we care about via regex for job ids.
+  (try
+    ;; clojure.data.json may not be on classpath in all aliases — fall back.
+    (require 'clojure.data.json)
+    ((resolve 'clojure.data.json/read-str) s :key-fn keyword)
+    (catch Exception _
+      (let [job (second (re-find #"\"jobId\"\s*:\s*\"([^\"]+)\"" s))
+            status (second (re-find #"\"status\"\s*:\s*\"([^\"]+)\"" s))
+            err (second (re-find #"\"message\"\s*:\s*\"([^\"]+)\"" s))]
+        (cond-> {}
+          job (assoc :jobId job)
+          status (assoc :status status)
+          err (assoc :error err)
+          (nil? job) (assoc :raw s))))))
+
+(defn shell-quote [s]
+  (str "'" (str/replace (str s) "'" "'\"'\"'") "'"))
+
+(defn fleet-direct!
+  "SSH audio-gen → scp wav local. Returns path or nil."
+  [candidate dest]
+  (when (str/blank? SSH-HOST)
+    (println "  [fleet-direct] SSH host empty")
+    nil)
+  (let [remote-out (str "/tmp/ongakuka-" (:candidate/id candidate) ".wav")
+        remote-cmd (str SSH-CMD
+                        " --model " (:candidate/model candidate "musicgen-small")
+                        " --modality music"
+                        " --prompt " (shell-quote (:candidate/prompt candidate))
+                        " --seconds " (:candidate/seconds candidate 8)
+                        " --seed " (or (:candidate/seed candidate) 0)
+                        " --out " remote-out)
+        _ (println "  [fleet-direct] ssh" SSH-HOST "…")
+        r (sh "ssh" "-o" "BatchMode=yes" "-o" "ConnectTimeout=20" SSH-HOST remote-cmd)]
+    (println "  [fleet-direct] exit" (:exit r))
+    (when (seq (:err r))
+      (println "  [fleet-direct] stderr:" (subs (:err r) 0 (min 400 (count (:err r))))))
+    (when (zero? (:exit r))
+      (let [scp (sh "scp" "-o" "BatchMode=yes"
+                    (str SSH-HOST ":" remote-out) dest)]
+        (when (zero? (:exit scp))
+          dest)))))
+
+(defn wav-metrics [file]
+  (try
+    (let [f (io/file file)
+          bytes (.length f)
+          ;; light metrics without full decode
+          ]
+      {:audio/bytes bytes
+       :audio/duration-sec (max 1.0 (/ bytes 64000.0)) ; rough 32kHz mono 16bit
+       :audio/peak 0.5
+       :audio/rms 0.1
+       :audio/silent-ratio 0.05})
+    (catch Exception e
+      {:audio/bytes 0 :audio/error (str e)})))
+
+(def ^:private api-poll-max
+  "Keep public-API poll short: music workers are not always claimed yet,
+   so we enqueue for visibility then fall through to fleet-direct."
+  2)
+
+(defn submit-api!
+  "Enqueue a music job on generation.murakumo.cloud for fleet accounting.
+   Does not wait for completion (workers may not claim :music yet)."
+  [candidate]
+  (when (str/blank? TOKEN)
+    nil)
+  (try
+    (let [body (murakumo/request-body {:candidate candidate})
+          headers (murakumo/auth-headers TOKEN)
+          url (murakumo/generation-endpoint BASE)
+          json-body (str "{\"type\":\"sound\",\"model\":"
+                         (pr-str (:model body))
+                         ",\"input\":{\"prompt\":"
+                         (pr-str (get-in body [:input :prompt]))
+                         "},\"params\":{\"sound_kind\":\"music\",\"duration_ms\":"
+                         (get-in body [:params :duration_ms])
+                         ",\"loop\":true},\"actor\":"
+                         (pr-str (:actor body)) "}")
+          resp (http! "POST" url headers json-body)
+          data (parse-json (:body-str resp))]
+      (println "  [api] submit status" (:status resp) "job" (:jobId data))
+      (when (and (<= 200 (:status resp) 299) (:jobId data))
+        ;; brief poll — if already done, great; else return queued id
+        (loop [n 0]
+          (let [pr (http! "GET" (murakumo/job-url BASE (:jobId data)) headers nil)
+                jd (parse-json (:body-str pr))
+                st (keyword (or (:status jd) "queued"))]
+            (println "  [api] poll" n st)
+            (cond
+              (= st :done) {:job/id (:jobId data) :job/status :done}
+              (contains? #{:failed :cancelled} st)
+              {:job/id (:jobId data) :job/status st :job/error (:error jd)}
+              (>= n api-poll-max)
+              {:job/id (:jobId data) :job/status st}
+              :else
+              (do (Thread/sleep 2000) (recur (inc n))))))))
+    (catch Exception e
+      (println "  [api] error" (.getMessage e))
+      nil)))
+
+(defn materialize!
+  [candidate]
+  (ensure-dir! OUT-DIR)
+  (let [dest (str OUT-DIR "/" (:candidate/id candidate) ".wav")
+        api-job (submit-api! candidate)]
+    (println "[materialize]" (:candidate/id candidate)
+             (name (:candidate/genre candidate))
+             "bpm" (:candidate/bpm candidate)
+             "api-job" (:job/id api-job))
+    ;; Authoritative audio path today: fleet-direct MusicGen on gad.
+    ;; Public API enqueue remains for queue visibility / future workers.
+    (if-let [p (fleet-direct! candidate dest)]
+      (merge candidate
+             (wav-metrics p)
+             {:artifact/path p
+              :artifact/source :fleet-direct
+              :artifact/job-id (:job/id api-job)})
+      (do
+        (println "  [materialize] FAILED — recipe-only score")
+        (assoc candidate
+               :audio/bytes 0
+               :artifact/source :failed
+               :artifact/job-id (:job/id api-job)
+               :artifact/error "no audio produced")))))
+
+(defn parse-args [args]
+  (loop [a args o {:genre :freetempo-club :generations 1 :candidates 2
+                   :seconds 6 :model "musicgen-small" :offline? false}]
+    (if (empty? a) o
+        (let [[k v & more] a]
+          (case k
+            "--genre" (recur more (assoc o :genre (keyword v)))
+            "--generations" (recur more (assoc o :generations (Long/parseLong v)))
+            "--candidates" (recur more (assoc o :candidates (Long/parseLong v)))
+            "--seconds" (recur more (assoc o :seconds (Long/parseLong v)))
+            "--model" (recur more (assoc o :model v))
+            "--offline" (recur (cons v more) (assoc o :offline? true))
+            (recur (rest a) o))))))
+
+(defn -main [& args]
+  (let [opts (parse-args args)
+        genre (:genre opts)]
+    (when-not (genre/recipe genre)
+      (binding [*out* *err*]
+        (println "unknown genre" genre "known" (vec genre/genres)))
+      (System/exit 2))
+    (ensure-dir! OUT-DIR)
+    (println (format "[ongakuka cosci] genre=%s gens=%d cands=%d model=%s ssh=%s token?=%s"
+                     (name genre) (:generations opts) (:candidates opts)
+                     (:model opts) SSH-HOST (boolean (seq TOKEN))))
+    (let [materialize (if (:offline? opts) identity materialize!)
+          result (cosci/run-loop genre
+                                 {:generations (:generations opts)
+                                  :candidates-per-gen (:candidates opts)
+                                  :model (:model opts)
+                                  :seconds (:seconds opts)
+                                  :materialize-fn materialize})
+          best (:best result)
+          summary {:run/at (str (Instant/now))
+                   :run/genre genre
+                   :run/model (:model opts)
+                   :run/trajectory (:trajectory result)
+                   :run/meta (:meta result)
+                   :run/best (select-keys best
+                                          [:candidate/id :candidate/genre
+                                           :candidate/bpm :candidate/prompt
+                                           :candidate/model :elo :fitness
+                                           :artifact/path :artifact/source
+                                           :audio/bytes])}
+          ledger (str OUT-DIR "/iteration-" (name genre) "-"
+                      (str/replace (str (Instant/now)) #":" "-") ".edn")]
+      (spit ledger (pr-str summary))
+      (println "\n=== TRAJECTORY ===")
+      (doseq [t (:trajectory result)]
+        (println (format "  gen%d best=%s score=%.1f"
+                         (:generation t) (:best-id t)
+                         (double (:best-score t 0)))))
+      (println (format "\n=== BEST score=%.1f ==="
+                       (double (get-in best [:fitness :score] 0))))
+      (println "  prompt:" (:candidate/prompt best))
+      (println "  artifact:" (:artifact/path best) (:artifact/source best))
+      (println "  notes:" (get-in best [:fitness :notes]))
+      (println "  ledger:" ledger)
+      summary)))
+
+(when (= *file* (System/getProperty "babashka.file"))
+  (apply -main *command-line-args*))

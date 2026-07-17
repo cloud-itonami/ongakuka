@@ -1,1 +1,6 @@
 .cpcache/
+.nrepl-port
+artifacts/
+*.wav
+*.mp3
+.DS_Store
