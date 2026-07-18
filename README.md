@@ -29,16 +29,18 @@ loop。
 | pure loop / genre / audit / murakumo contract | `kotoba-lang/ongaku` (`ongaku.coscientist` 等) |
 | fleet runner (Python) | `scripts/run_coscientist_fleet.py` |
 | fleet runner (Clojure) | `scripts/coscientist_murakumo.clj` |
-| worker (`audio-gen`) | `scripts/audio_gen.py` → deployed on **gad** as `/home/gad/bin/audio-gen` |
-| murakumo music models | `cloud-murakumo` `:music` default **`musicgen-small`** |
+| worker (`audio-gen`) | `scripts/audio_gen.py` → **gad** `/home/gad/bin/audio-gen` |
+| murakumo music models | `cloud-murakumo` `:music` default + **quality-authority = `musicgen-small`** |
+| ACE-Step | installed on gad (`audio-gen-ace`) but **experimental-non-adopted** (ear quality below MusicGen; ADR-2607171900 addendum 2026-07-18) |
 
 ```bash
-# Fleet-direct MusicGen on gad (authoritative path today)
+# Fleet-direct MusicGen on gad (quality-canonical path)
 ONGAKUKA_AUDIO_GEN_SSH=gad \
   python3 scripts/run_coscientist_fleet.py \
-  --genre freetempo-club --candidates 2 --seconds 5
+  --genre freetempo-club --candidates 2 --seconds 24
 
 # genres: freetempo-club | game-jp | jpop
+# Do not use ace-step as default for product quality (full-song length only).
 ```
 
 Public enqueue (queue visibility; workers may not claim yet):

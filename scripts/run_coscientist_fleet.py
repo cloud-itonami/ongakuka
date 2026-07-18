@@ -167,7 +167,8 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--genre", default="freetempo-club", choices=list(GENRES))
     ap.add_argument("--candidates", type=int, default=2)
-    ap.add_argument("--seconds", type=int, default=5)
+    ap.add_argument("--seconds", type=int, default=24,
+                    help="Target length in seconds (MusicGen ~50 tokens/s; 24 ≈ verse-length)")
     ap.add_argument("--model", default="musicgen-small")
     args = ap.parse_args()
 

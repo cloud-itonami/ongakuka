@@ -35,7 +35,8 @@ def parse_args(argv=None):
     p.add_argument("--model", default="musicgen-small")
     p.add_argument("--modality", default="music")
     p.add_argument("--prompt", required=True)
-    p.add_argument("--seconds", type=float, default=8.0)
+    p.add_argument("--seconds", type=float, default=24.0,
+                   help="Target duration (MusicGen: ~50 new tokens ≈ 1s)")
     p.add_argument("--seed", type=int, default=None)
     p.add_argument("--out", default=None)
     p.add_argument("--negative", default="")
@@ -45,7 +46,8 @@ def parse_args(argv=None):
 def main(argv=None) -> int:
     args = parse_args(argv)
     hf_id = MODEL_ALIASES.get(args.model, args.model)
-    seconds = max(1.0, min(float(args.seconds), 30.0))
+    # Cap 60s — longer runs risk OOM on 16–48GB fleet nodes with musicgen-small.
+    seconds = max(1.0, min(float(args.seconds), 60.0))
     out = args.out or f"murakumo-aud-{int(time.time())}.wav"
 
     # Prefer ROCm/CUDA when available; MusicGen falls back to CPU.
