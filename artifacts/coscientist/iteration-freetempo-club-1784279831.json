@@ -1,0 +1,57 @@
+{
+  "run/at": "2026-07-17T09:17:11Z",
+  "run/genre": "freetempo-club",
+  "run/model": "musicgen-small",
+  "run/backend": "fleet-direct-musicgen-gad",
+  "run/trajectory": [
+    {
+      "generation": 0,
+      "best-id": "freetempo-club-g0-0",
+      "best-score": 100.0
+    }
+  ],
+  "run/ranked": [
+    {
+      "id": "freetempo-club-g0-0",
+      "fitness": 100.0,
+      "recipe": {
+        "score": 100.0,
+        "axes": {
+          "keyword-coverage": 1.0,
+          "bpm-in-band": 1.0
+        }
+      },
+      "audio": {
+        "score": 100.0,
+        "bytes": 316204
+      },
+      "artifact": "/Users/junkawasaki/github/com-junkawasaki/orgs/gftdcojp/ai-gftd-ongakuka/artifacts/coscientist/freetempo-club-g0-0.wav",
+      "prompt": "Warm four-on-the-floor house groove, FreeTEMPO-like nu-jazz club quality, soft Rhodes electric piano, gentle bossa / AOR influence, organic bass, brushed hi-hats, polished club mix, instrumental, no vocals, BPM 118. Rhodes comping slightly behind the beat"
+    },
+    {
+      "id": "freetempo-club-g0-1",
+      "fitness": 100.0,
+      "recipe": {
+        "score": 100.0,
+        "axes": {
+          "keyword-coverage": 1.0,
+          "bpm-in-band": 1.0
+        }
+      },
+      "audio": {
+        "score": 100.0,
+        "bytes": 316204
+      },
+      "artifact": "/Users/junkawasaki/github/com-junkawasaki/orgs/gftdcojp/ai-gftd-ongakuka/artifacts/coscientist/freetempo-club-g0-1.wav",
+      "prompt": "Warm four-on-the-floor house groove, FreeTEMPO-like nu-jazz club quality, soft Rhodes electric piano, gentle bossa / AOR influence, organic bass, brushed hi-hats, polished club mix, instrumental, no vocals, BPM 118. soft filter open over 8 bars"
+    }
+  ],
+  "run/best": {
+    "id": "freetempo-club-g0-0",
+    "genre": "freetempo-club",
+    "bpm": 118,
+    "prompt": "Warm four-on-the-floor house groove, FreeTEMPO-like nu-jazz club quality, soft Rhodes electric piano, gentle bossa / AOR influence, organic bass, brushed hi-hats, polished club mix, instrumental, no vocals, BPM 118. Rhodes comping slightly behind the beat",
+    "fitness": 100.0,
+    "artifact": "/Users/junkawasaki/github/com-junkawasaki/orgs/gftdcojp/ai-gftd-ongakuka/artifacts/coscientist/freetempo-club-g0-0.wav"
+  }
+}

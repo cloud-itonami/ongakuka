@@ -1,0 +1,47 @@
+{
+    "format": "wav",
+    "lora_name_or_path": "none",
+    "lora_weight": 1.0,
+    "task": "text2music",
+    "prompt": "nu-jazz, deep house, FreeTEMPO, AOR, soft Rhodes electric piano, organic bass, brushed hi-hats, four-on-the-floor, warm club, polished mix, instrumental, 118 bpm, rhodes slightly behind the beat, soft filter open, gentle bossa influence",
+    "lyrics": "[intro]\nsoft pads, muted kick enters, Rhodes motif hint\n[verse]\nRhodes comping slightly behind the beat, organic bass groove, brushed hats\n[verse]\nadd soft filter motion, keep room on the kick\n[pre-chorus]\nfilter opens over eight bars, tension without drums overbuild\n[chorus]\nfull four-on-the-floor, Rhodes lead phrase, warm stereo pad\n[verse]\ndrop density, keep bass and Rhodes conversation\n[chorus]\nreturn full groove, slight variation on Rhodes motif\n[bridge]\nhalf-time feel, airy Rhodes, soft percussion only\n[chorus]\nmain groove return, soft open filter again\n[outro]\nstrip layers, Rhodes motif fade, room tone",
+    "audio_duration": 120.0,
+    "infer_step": 50,
+    "guidance_scale": 9.0,
+    "scheduler_type": "euler",
+    "cfg_type": "apg",
+    "omega_scale": 8.0,
+    "guidance_interval": 0.5,
+    "guidance_interval_decay": 0.0,
+    "min_guidance_scale": 3.0,
+    "use_erg_tag": true,
+    "use_erg_lyric": true,
+    "use_erg_diffusion": true,
+    "oss_steps": [],
+    "timecosts": {
+        "preprocess": 0.4597203731536865,
+        "diffusion": 38.84862184524536,
+        "latent2audio": 114.8505871295929
+    },
+    "actual_seeds": [
+        703
+    ],
+    "retake_seeds": [
+        389734051
+    ],
+    "retake_variance": 0.5,
+    "guidance_scale_text": 0.0,
+    "guidance_scale_lyric": 0.0,
+    "repaint_start": 0,
+    "repaint_end": 0,
+    "edit_n_min": 0.0,
+    "edit_n_max": 1.0,
+    "edit_n_avg": 1,
+    "src_audio_path": null,
+    "edit_target_prompt": null,
+    "edit_target_lyrics": null,
+    "audio2audio_enable": false,
+    "ref_audio_strength": 0.5,
+    "ref_audio_input": null,
+    "audio_path": "/tmp/ongakuka-ace-retake-ft/freetempo-club-ace-r703.wav"
+}
