@@ -1,0 +1,47 @@
+{
+    "format": "wav",
+    "lora_name_or_path": "none",
+    "lora_weight": 1.0,
+    "task": "text2music",
+    "prompt": "Modern J-pop instrumental bed, bright catchy hook, polished radio mix, tight drums and bass, electric guitar sparkle, synth pads, verse pre-chorus lift and sparkling chorus energy, club-adjacent but melodic, BPM 128, full song length instrumental arrangement",
+    "lyrics": "[Instrumental]",
+    "audio_duration": 150.0,
+    "infer_step": 27,
+    "guidance_scale": 15.0,
+    "scheduler_type": "euler",
+    "cfg_type": "apg",
+    "omega_scale": 10.0,
+    "guidance_interval": 0.5,
+    "guidance_interval_decay": 0.0,
+    "min_guidance_scale": 3.0,
+    "use_erg_tag": true,
+    "use_erg_lyric": true,
+    "use_erg_diffusion": true,
+    "oss_steps": [],
+    "timecosts": {
+        "preprocess": 0.45650672912597656,
+        "diffusion": 22.90876579284668,
+        "latent2audio": 135.0191719532013
+    },
+    "actual_seeds": [
+        303
+    ],
+    "retake_seeds": [
+        3654444879
+    ],
+    "retake_variance": 0.5,
+    "guidance_scale_text": 0.0,
+    "guidance_scale_lyric": 0.0,
+    "repaint_start": 0,
+    "repaint_end": 0,
+    "edit_n_min": 0.0,
+    "edit_n_max": 1.0,
+    "edit_n_avg": 1,
+    "src_audio_path": null,
+    "edit_target_prompt": null,
+    "edit_target_lyrics": null,
+    "audio2audio_enable": false,
+    "ref_audio_strength": 0.5,
+    "ref_audio_input": null,
+    "audio_path": "/tmp/ongakuka-ace-full/jpop-ace-150.wav"
+}
