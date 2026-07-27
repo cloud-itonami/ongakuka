@@ -1,0 +1,300 @@
+#!/usr/bin/env nbb
+;; coscientist-murakumo.cljs — ongakuka ReAct / Co-Scientist music loop on
+;; the murakumo generation fleet.
+;;
+;;   Generate → Reflect → materialize (POST sound) → Fitness → Elo Rank
+;;   → Evolve → Meta
+;;
+;; Usage:
+;;   MURAKUMO_GENERATION_TOKEN=mk1... \
+;;   nbb --classpath "src:../../kotoba-lang/ongaku/src" \
+;;     scripts/coscientist_murakumo.cljs \
+;;     --genre freetempo-club --generations 2 --candidates 3 --seconds 8
+;;
+;; Token mint:
+;;   MURAKUMO_TOKEN_SECRET=$(kagi get MURAKUMO_GENERATION_TOKEN_SECRET) \
+;;     clojure -M:token issue ongakuka-cosci generation 7200
+;;   (from orgs/gftdcojp/cloud-murakumo)
+;;
+;; Optional fleet-direct path (bypasses queue when workers are cold):
+;;   ONGAKUKA_AUDIO_GEN_SSH=gad ONGAKUKA_AUDIO_GEN_CMD='...' nbb ...
+
+(ns coscientist-murakumo
+  (:require [clojure.string :as str]
+            [clojure.edn :as edn]
+            ["fs" :as fs]
+            ["path" :as path]
+            ["child_process" :as cp]
+            [ongaku.coscientist :as cosci]
+            [ongaku.murakumo :as murakumo]
+            [ongaku.genre :as genre]))
+
+(defn env [k d]
+  (or (aget js/process.env k) d))
+
+(def BASE (env "MURAKUMO_API_URL" murakumo/default-base-url))
+(def TOKEN (or (env "MURAKUMO_GENERATION_TOKEN" nil)
+               (env "MURAKUMO_TOKEN" nil)
+               ""))
+(def OUT-DIR (env "ONGAKUKA_OUT" "artifacts/coscientist"))
+(def SSH-HOST (env "ONGAKUKA_AUDIO_GEN_SSH" ""))
+(def SSH-CMD (env "ONGAKUKA_AUDIO_GEN_CMD"
+                  "source /home/gad/TRELLIS-AMD/.venv/bin/activate && python3 /home/gad/bin/audio-gen"))
+
+(defn ensure-dir! [d]
+  (when-not (fs/existsSync d) (fs/mkdirSync d #js {:recursive true})))
+
+(defn sh
+  "Run shell command; return {:exit :out :err}."
+  [cmd]
+  (try
+    (let [r (cp/spawnSync "bash" #js ["-lc" cmd] #js {:encoding "utf8" :timeout 900000})]
+      {:exit (or (.-status r) 1)
+       :out (str (.-stdout r))
+       :err (str (.-stderr r))})
+    (catch :default e
+      {:exit 1 :out "" :err (str e)})))
+
+(defn http-json
+  [method url headers body]
+  (let [opts (cond-> {:method method
+                      :headers (clj->js headers)}
+               body (assoc :body (js/JSON.stringify (clj->js body))))
+        resp (js/await (js/fetch url (clj->js opts)))
+        status (.-status resp)
+        text (js/await (.text resp))
+        data (try (js->clj (js/JSON.parse text) :keywordize-keys true)
+                  (catch :default _ {:raw text}))]
+    {:status status :body data :text text}))
+
+(defn mint-note! []
+  (when (str/blank? TOKEN)
+    (println "[ongakuka cosci] WARN: no MURAKUMO_GENERATION_TOKEN — will try fleet-direct SSH only")))
+
+(defn submit-job!
+  [candidate]
+  (let [body (murakumo/request-body {:candidate candidate
+                                     :actor "ongakuka:coscientist"})
+        headers (murakumo/auth-headers TOKEN)
+        url (murakumo/generation-endpoint BASE)
+        r (js/await (http-json "POST" url headers body))]
+    (when-not (<= 200 (:status r) 299)
+      (throw (ex-info "generation submit failed"
+                      {:status (:status r) :body (:body r)})))
+    (murakumo/normalize-job (:body r))))
+
+(defn poll-job!
+  [job-id]
+  (let [headers (murakumo/auth-headers TOKEN)
+        url (murakumo/job-url BASE job-id)]
+    (loop [attempt 0]
+      (let [r (js/await (http-json "GET" url headers nil))
+            job (murakumo/normalize-job (:body r))]
+        (cond
+          (murakumo/terminal? job) job
+          (murakumo/poll-exhausted? attempt)
+          (assoc job :job/status :failed :job/error "poll exhausted")
+          :else
+          (do
+            (js/await (js/Promise. (fn [res] (js/setTimeout res (murakumo/poll-delay-ms attempt)))))
+            (recur (inc attempt))))))))
+
+(defn download-artifact!
+  [job dest]
+  (let [url (or (:job/artifact-url job)
+                (murakumo/artifact-url BASE (:job/id job)))
+        headers (murakumo/auth-headers TOKEN)
+        resp (js/await (js/fetch url (clj->js {:headers (clj->js headers)})))
+        buf (js/await (.arrayBuffer resp))
+        u8 (js/Uint8Array. buf)]
+    (fs/writeFileSync dest u8)
+    dest))
+
+(defn wav-metrics
+  "Minimal WAV metrics without external deps (PCM16 LE)."
+  [file]
+  (try
+    (let [buf (fs/readFileSync file)
+          ;; crude: skip 44-byte header if present
+          start (if (and (> (.-length buf) 44)
+                         (= (str (.toString buf "ascii" 0 4)) "RIFF"))
+                  44 0)
+          samples (quot (- (.-length buf) start) 2)
+          peak (atom 0.0)
+          sumsq (atom 0.0)
+          silent (atom 0)]
+      (dotimes [i (min samples 2000000)]
+        (let [off (+ start (* i 2))
+              lo (aget buf off)
+              hi (aget buf (inc off))
+              s (if (> hi 127) (- hi 256) hi)
+              v (/ (+ lo (* s 256)) 32768.0)
+              a (js/Math.abs v)]
+          (when (> a @peak) (reset! peak a))
+          (swap! sumsq + (* v v))
+          (when (< a 0.01) (swap! silent inc))))
+      (let [n (max 1 (min samples 2000000))
+            rms (js/Math.sqrt (/ @sumsq n))
+            silent-ratio (/ @silent n)
+            duration-sec (/ samples 32000.0)]
+        {:audio/bytes (.-length buf)
+         :audio/peak @peak
+         :audio/rms rms
+         :audio/silent-ratio silent-ratio
+         :audio/duration-sec duration-sec}))
+    (catch :default e
+      {:audio/bytes 0 :audio/error (str e)})))
+
+(defn fleet-direct-generate!
+  "SSH to fleet node and run audio-gen. Returns local wav path or nil."
+  [candidate dest]
+  (when (str/blank? SSH-HOST)
+    nil)
+  (let [prompt (-> (:candidate/prompt candidate)
+                   (str/replace "'" "'\\''"))
+        neg (-> (:candidate/negative candidate "")
+                (str/replace "'" "'\\''"))
+        model (:candidate/model candidate "musicgen-small")
+        seconds (:candidate/seconds candidate 8)
+        seed (or (:candidate/seed candidate) 0)
+        remote-out (str "/tmp/ongakuka-" (:candidate/id candidate) ".wav")
+        remote-cmd (str SSH-CMD
+                        " --model " model
+                        " --modality music"
+                        " --prompt '" prompt "'"
+                        " --seconds " seconds
+                        " --seed " seed
+                        (when (seq neg) (str " --negative '" neg "'"))
+                        " --out " remote-out)
+        ssh-cmd (str "ssh -o BatchMode=yes -o ConnectTimeout=15 "
+                     SSH-HOST " " (pr-str remote-cmd))
+        r (sh ssh-cmd)]
+    (println "[fleet-direct] exit" (:exit r) (subs (:err r) 0 (min 200 (count (:err r)))))
+    (when (zero? (:exit r))
+      (let [scp (sh (str "scp -o BatchMode=yes "
+                         SSH-HOST ":" remote-out " " (pr-str dest)))]
+        (when (zero? (:exit scp))
+          dest)))))
+
+(defn materialize!
+  "Submit candidate to murakumo; on failure/timeout try fleet-direct SSH.
+   Returns candidate enriched with :fitness inputs and :artifact/path."
+  [candidate]
+  (ensure-dir! OUT-DIR)
+  (let [dest (path/join OUT-DIR (str (:candidate/id candidate) ".wav"))]
+    (println "[materialize]" (:candidate/id candidate)
+             "genre=" (name (:candidate/genre candidate))
+             "bpm=" (:candidate/bpm candidate))
+    (try
+      (if-not (str/blank? TOKEN)
+        (let [job (js/await (submit-job! candidate))
+              _ (println "  submitted job" (:job/id job))
+              done (js/await (poll-job! (:job/id job)))]
+          (if (murakumo/succeeded? done)
+            (do
+              (js/await (download-artifact! done dest))
+              (merge candidate
+                     (wav-metrics dest)
+                     {:artifact/path dest
+                      :artifact/job-id (:job/id job)
+                      :artifact/source :murakumo-api}))
+            (do
+              (println "  job not done:" (:job/status done) (:job/error done)
+                       "— trying fleet-direct")
+              (if-let [p (fleet-direct-generate! candidate dest)]
+                (merge candidate (wav-metrics p)
+                       {:artifact/path p :artifact/source :fleet-direct
+                        :artifact/job-id (:job/id job)})
+                (assoc candidate
+                       :audio/bytes 0
+                       :artifact/error (or (:job/error done) "no audio")
+                       :artifact/job-id (:job/id job)
+                       :artifact/source :failed)))))
+        (if-let [p (fleet-direct-generate! candidate dest)]
+          (merge candidate (wav-metrics p)
+                 {:artifact/path p :artifact/source :fleet-direct})
+          (assoc candidate :audio/bytes 0 :artifact/error "no token and no ssh"
+                 :artifact/source :failed)))
+      (catch :default e
+        (println "  materialize error:" e)
+        (if-let [p (fleet-direct-generate! candidate dest)]
+          (merge candidate (wav-metrics p)
+                 {:artifact/path p :artifact/source :fleet-direct-fallback})
+          (assoc candidate :audio/bytes 0 :artifact/error (str e)
+                 :artifact/source :failed))))))
+
+(defn parse-args [argv]
+  (loop [a (vec argv)
+         o {:genre :freetempo-club
+            :generations 2
+            :candidates 3
+            :seconds 8
+            :model "musicgen-small"}]
+    (if (empty? a)
+      o
+      (let [[k v & more] a]
+        (case k
+          "--genre" (recur more (assoc o :genre (keyword v)))
+          "--generations" (recur more (assoc o :generations (js/parseInt v 10)))
+          "--candidates" (recur more (assoc o :candidates (js/parseInt v 10)))
+          "--seconds" (recur more (assoc o :seconds (js/parseInt v 10)))
+          "--model" (recur more (assoc o :model v))
+          "--offline" (recur (cons v more) (assoc o :offline? true))
+          (recur (vec (cons v more)) o))))))
+
+(defn -main [& args]
+  (let [opts (parse-args args)
+        genre (:genre opts)]
+    (when-not (genre/recipe genre)
+      (println "unknown genre" genre "known" (vec genre/genres))
+      (js/process.exit 2))
+    (mint-note!)
+    (ensure-dir! OUT-DIR)
+    (println (format "[ongakuka cosci] genre=%s gens=%d cands=%d model=%s base=%s"
+                     (name genre) (:generations opts) (:candidates opts)
+                     (:model opts) BASE))
+    (let [materialize (if (:offline? opts)
+                        identity
+                        (fn [c] (js/await (materialize! c))))
+          result (cosci/run-loop genre
+                                 {:generations (:generations opts)
+                                  :candidates-per-gen (:candidates opts)
+                                  :model (:model opts)
+                                  :seconds (:seconds opts)
+                                  :materialize-fn materialize})
+          ledger-path (path/join OUT-DIR
+                                 (str "iteration-" (name genre) "-"
+                                      (.toISOString (js/Date.)) ".edn"))
+          best (:best result)
+          summary {:run/at (.toISOString (js/Date.))
+                   :run/genre genre
+                   :run/model (:model opts)
+                   :run/trajectory (:trajectory result)
+                   :run/meta (:meta result)
+                   :run/best (select-keys best
+                                          [:candidate/id :candidate/genre
+                                           :candidate/bpm :candidate/prompt
+                                           :candidate/model :elo :fitness
+                                           :artifact/path :artifact/source
+                                           :artifact/job-id
+                                           :audio/bytes :audio/peak :audio/rms])}]
+      (fs/writeFileSync ledger-path (pr-str summary))
+      (println "\n=== TRAJECTORY ===")
+      (doseq [t (:trajectory result)]
+        (println (format "  gen%d best=%s score=%.1f elo=%.0f"
+                         (:generation t) (:best-id t)
+                         (double (:best-score t 0))
+                         (double (:elo t 0)))))
+      (println (format "\n=== BEST score=%.1f genre=%s ==="
+                       (double (get-in best [:fitness :score] 0))
+                       (name (:candidate/genre best))))
+      (println "  prompt:" (:candidate/prompt best))
+      (println "  artifact:" (:artifact/path best) "(" (:artifact/source best) ")")
+      (println "  notes:" (get-in best [:fitness :notes]))
+      (println "  ledger:" ledger-path)
+      summary)))
+
+;; nbb entry
+(defonce _
+  (let [argv (vec (drop 2 (js->clj (.-argv js/process))))]
+    (js/await (-main argv))))

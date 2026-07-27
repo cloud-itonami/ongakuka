@@ -1,37 +1,69 @@
 # ai-gftd-ongakuka
 
-gftd の private BGM カタログ（音楽家 / 職能 repo）。選定ロジック・ポリシー
-gate は公開 craft lib [`kotoba-lang/ongaku`](https://github.com/kotoba-lang/ongaku)
-に分離済みで（ADR-2607023000: コードは kotoba-lang、職能は
-cloud-itonami-isco、商売は gftdcojp）、この repo が持つのは事業データだけ:
+gftd の private 音楽家 / 職能 repo（ISCO-08 `2652`）。
 
-- `resources/catalog.edn` — asset 台帳（DOVA-SYNDROME / Incompetech 由来。
-  render-only / no raw public access / no AI-training / no Content-ID の
-  ポリシーフラグ付き、チャンネル roster 込み）
-- `docs/` — カタログ運用ノートと B2 annex runbook
+## 2 paths
 
-音源ファイルの実体はこの repo には置かない（`:asset/local-path` は
-yukkuri-assets 側の path 参照。大容量実体は B2+DataLad 経路）。
+### A. BGM catalog selection（既存）
 
-## 使い方
+選定ロジック・ポリシー gate は公開 craft lib
+[`kotoba-lang/ongaku`](https://github.com/kotoba-lang/ongaku)
+（ADR-2607023000）。この repo が持つのは事業データ:
+
+- `resources/catalog.edn` — DOVA-SYNDROME / Incompetech 台帳
+- `docs/` — カタログ運用 + B2 annex runbook
 
 ```clojure
 (require '[ongaku.compose :as compose])
-;; resources/ が classpath にあるので catalog.edn は暗黙に解決される
 (compose/compose {:channel-id "cyber" :mood :calm-tech :duration/sec 120})
 ```
 
-職能: ISCO-08 `2652`
-([cloud-itonami-isco-2652](https://github.com/cloud-itonami/cloud-itonami-isco-2652))。
+### B. AI generation coscientist（2026-07-17）
+
+日本ゲーム音楽 / J-pop / FreeTEMPO 級 club 向けの
+**Generate → Reflect → materialize → Fitness → Elo Rank → Evolve → Meta**
+loop。
+
+| 層 | 場所 |
+|---|---|
+| pure loop / genre / audit / murakumo contract | `kotoba-lang/ongaku` (`ongaku.coscientist` 等) |
+| fleet runner (Python) | `scripts/run_coscientist_fleet.py` |
+| fleet runner (Clojure) | `scripts/coscientist_murakumo.clj` |
+| worker (`audio-gen`) | `scripts/audio_gen.py` → **gad** `/home/gad/bin/audio-gen` |
+| murakumo music models | `cloud-murakumo` `:music` default + **quality-authority = `musicgen-small`** |
+| ACE-Step | installed on gad (`audio-gen-ace`) but **experimental-non-adopted** (ear quality below MusicGen; ADR-2607171900 addendum 2026-07-18) |
+
+```bash
+# Fleet-direct MusicGen on gad (quality-canonical path)
+ONGAKUKA_AUDIO_GEN_SSH=gad \
+  python3 scripts/run_coscientist_fleet.py \
+  --genre freetempo-club --candidates 2 --seconds 24
+
+# genres: freetempo-club | game-jp | jpop
+# Do not use ace-step as default for product quality (full-song length only).
+```
+
+Public enqueue (queue visibility; workers may not claim yet):
+
+```bash
+MURAKUMO_TOKEN_SECRET=$(kagi get MURAKUMO_GENERATION_TOKEN_SECRET) \
+  clojure -M:token issue ongakuka-cosci generation 7200   # in cloud-murakumo
+# POST https://generation.murakumo.cloud/api/v1/generation
+#   {"type":"sound","model":"musicgen-small",...}
+```
+
+Artifacts land under `artifacts/coscientist/` (gitignored).
 
 ## Test
 
 ```bash
-clojure -M:test
+# craft lib (includes coscientist offline tests)
+cd ../../kotoba-lang/ongaku && clojure -M:test
+# catalog repo
+clojure -M:dev:test
 ```
 
 ## 由来
 
-superproject 直下の plain tree `orgs/gftdcojp/ongakuka` から child repo 化
-（ADR-2607023000 follow-up）。汎用ロジック（compose/policy/catalog reader)は
-kotoba-lang/ongaku へ、カタログはここへ。
+superproject 直下 plain tree `orgs/gftdcojp/ongakuka` から child repo 化
+（ADR-2607023000）。汎用ロジックは kotoba-lang/ongaku、カタログ + runners はここ。
