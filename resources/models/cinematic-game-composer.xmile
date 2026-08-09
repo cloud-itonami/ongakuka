@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xmile xmlns="http://docs.oasis-open.org/xmile/ns/XMILE/v1.0" version="1.0">
+  <header>
+    <name>ongakuka cinematic game composer world model</name>
+    <vendor>cloud-itonami/ongakuka</vendor>
+    <product version="1">ongakuka actor</product>
+    <caption>
+      An original-composition decision model. John Williams and Nobuo Uematsu
+      are provenance labels for two publicly observable, high-level craft
+      traditions only: leitmotif-led orchestral narrative, and compact melodic
+      identity designed to survive repetition. The model contains no melodies,
+      recordings, embeddings, or artist-name render prompts.
+    </caption>
+  </header>
+  <sim_specs method="euler" time_units="phrase">
+    <start>0</start>
+    <stop>24</stop>
+    <dt>1</dt>
+  </sim_specs>
+  <model name="Cinematic_Game_Composer">
+    <variables>
+      <stock name="Theme_Coherence">
+        <eqn>0.42</eqn>
+        <inflow>Theme_Development</inflow>
+        <outflow>Motif_Fatigue</outflow>
+        <non_negative/>
+      </stock>
+      <stock name="Orchestral_Narrative">
+        <eqn>0.34</eqn>
+        <inflow>Orchestral_Build</inflow>
+        <outflow>Density_Cost</outflow>
+        <non_negative/>
+      </stock>
+      <stock name="Melodic_Memorability">
+        <eqn>0.46</eqn>
+        <inflow>Melody_Clarification</inflow>
+        <outflow>Melody_Saturation</outflow>
+        <non_negative/>
+      </stock>
+      <stock name="Harmonic_Tension">
+        <eqn>0.30</eqn>
+        <inflow>Tension_Build</inflow>
+        <outflow>Resolution</outflow>
+        <non_negative/>
+      </stock>
+      <stock name="Loop_Durability">
+        <eqn>0.38</eqn>
+        <inflow>Loop_Learning</inflow>
+        <outflow>Loop_Wear</outflow>
+        <non_negative/>
+      </stock>
+
+      <flow name="Theme_Development"><eqn>theme_development_rate * (cinematic_principle_weight * story_pressure + game_melodic_principle_weight * loop_need) * (1 - Theme_Coherence)</eqn></flow>
+      <flow name="Motif_Fatigue"><eqn>motif_fatigue_rate * Theme_Coherence * (0.4 + 0.6 * Orchestral_Narrative)</eqn></flow>
+      <flow name="Orchestral_Build"><eqn>orchestral_build_rate * 2 * cinematic_principle_weight * story_pressure * (1 - Orchestral_Narrative)</eqn></flow>
+      <flow name="Density_Cost"><eqn>orchestral_density_cost * Orchestral_Narrative * (0.25 + 0.75 * intimacy)</eqn></flow>
+      <flow name="Melody_Clarification"><eqn>melody_clarity_rate * 2 * game_melodic_principle_weight * (0.7 * intimacy + 0.3 * wonder) * (1 - Melodic_Memorability)</eqn></flow>
+      <flow name="Melody_Saturation"><eqn>melody_saturation_rate * Melodic_Memorability * (1 - 0.7 * loop_need)</eqn></flow>
+      <flow name="Tension_Build"><eqn>tension_build_rate * 2 * cinematic_principle_weight * (0.7 * darkness + 0.3 * story_pressure) * (1 - Harmonic_Tension)</eqn></flow>
+      <flow name="Resolution"><eqn>resolution_rate * Harmonic_Tension * (0.35 + 0.65 * intimacy)</eqn></flow>
+      <flow name="Loop_Learning"><eqn>loop_learning_rate * 2 * game_melodic_principle_weight * loop_need * (1 - Loop_Durability)</eqn></flow>
+      <flow name="Loop_Wear"><eqn>loop_wear_rate * Loop_Durability * (0.15 + ABS(Harmonic_Tension - 0.5))</eqn></flow>
+
+      <aux name="theme_development_rate"><eqn>0.115</eqn></aux>
+      <aux name="motif_fatigue_rate"><eqn>0.031</eqn></aux>
+      <aux name="orchestral_build_rate"><eqn>0.104</eqn></aux>
+      <aux name="orchestral_density_cost"><eqn>0.038</eqn></aux>
+      <aux name="melody_clarity_rate"><eqn>0.126</eqn></aux>
+      <aux name="melody_saturation_rate"><eqn>0.034</eqn></aux>
+      <aux name="tension_build_rate"><eqn>0.098</eqn></aux>
+      <aux name="resolution_rate"><eqn>0.071</eqn></aux>
+      <aux name="loop_learning_rate"><eqn>0.108</eqn></aux>
+      <aux name="loop_wear_rate"><eqn>0.029</eqn></aux>
+      <aux name="cinematic_principle_weight"><eqn>0.5</eqn></aux>
+      <aux name="game_melodic_principle_weight"><eqn>0.5</eqn></aux>
+      <aux name="originality_guard"><eqn>1</eqn></aux>
+      <aux name="story_pressure"><eqn>0.5</eqn></aux>
+      <aux name="intimacy"><eqn>0.5</eqn></aux>
+      <aux name="wonder"><eqn>0.5</eqn></aux>
+      <aux name="darkness"><eqn>0.5</eqn></aux>
+      <aux name="loop_need"><eqn>0.5</eqn></aux>
+    </variables>
+  </model>
+</xmile>

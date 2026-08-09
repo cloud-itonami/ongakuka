@@ -54,6 +54,42 @@ MURAKUMO_TOKEN_SECRET=$(kagi get MURAKUMO_GENERATION_TOKEN_SECRET) \
 
 Artifacts land under `artifacts/coscientist/` (gitignored).
 
+### XMILE world-composer actor
+
+`did:web:ongakuka.itonami.cloud:actor:world-composer` は、2つの作曲伝統を
+人物の音色・旋律の模倣ではなく、説明可能な抽象原理として統合する。
+
+- 映画音楽側: ライトモティーフの発展、管弦楽による物語の弧、緊張と解決
+- ゲーム音楽側: 短く記憶可能な旋律、制約された編成、反復に耐えるフレーズ
+- 安全境界: 既存旋律・録音・style embedding は入力しない。render prompt に人物名を
+  入れず、生成物を「本人風」と表示しない
+
+ワールドモデルの正本は
+`resources/models/cinematic-game-composer.xmile`（OASIS XMILE 1.0）。
+初期 stock、係数、Euler の horizon/dt は XMILE から読み、brief の
+`:story-pressure` / `:intimacy` / `:wonder` / `:darkness` / `:loop-need`
+を外生入力として、テーマ整合性・管弦楽的物語性・旋律記憶性・和声緊張・
+loop 耐久性を時間発展させる。actor は最終状態から deterministic な motif、構成、
+MIDI 相当 event、既存 MusicGen path 用 request を返す。ネットワーク・音声 I/O は
+従来どおり host が所有する。
+
+sound request は host の暗黙 default を許さず、`:model`、`:duration_ms`、
+`:seed` を必須値として固定する。例えば内蔵 brief は
+`{:type :sound :model "musicgen-small" :duration_ms 96000 :seed 2652 ...}`
+となる。秒は composition brief の単位にだけ残し、render 境界では整数ミリ秒へ
+一度だけ変換する。
+
+```bash
+# 内蔵 brief で EDN cue blueprint を生成
+clojure -M:world-compose
+
+# または brief.edn を渡す（20–600秒、integer seed 必須）
+clojure -M:world-compose brief.edn
+
+# network opt-in: 公式 OASIS XMILE 1.0 XSD で検証
+clojure -M:xmile-conformance
+```
+
 ## sakkyokuka との境界
 
 ISCO-08 2652 は Musicians, Singers **and Composers** を1職業として束ねている
