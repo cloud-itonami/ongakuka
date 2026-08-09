@@ -1,0 +1,150 @@
+(ns ongakuka.actor
+  "Deterministic composer actor driven by the ongakuka XMILE world model."
+  (:gen-class)
+  (:require [clojure.edn :as edn]
+            [clojure.java.io :as io]
+            [clojure.string :as str]
+            [ongakuka.world-model :as world]))
+
+(def actor-id "did:web:ongakuka.itonami.cloud:actor:world-composer")
+
+(def sound-model "musicgen-small")
+
+(defn sound-request
+  "Builds the host-owned sound rendering contract.
+
+  `model`, `duration_ms`, and `seed` are deliberately explicit in the request:
+  hosts must not silently substitute their default model, round seconds, or
+  choose fresh randomness.  The model remains policy-owned by this actor."
+  [prompt duration-sec seed]
+  {:type :sound
+   :model sound-model
+   :duration_ms (* 1000 (long duration-sec))
+   :seed seed
+   :prompt prompt})
+
+(defn- clamp-int [low high n] (max low (min high (long n))))
+
+(defn validate-brief [brief]
+  (cond-> []
+    (not (string? (:title brief)))
+    (conj {:problem :title-required})
+    (not (<= 20 (or (:duration-sec brief) 0) 600))
+    (conj {:problem :duration-out-of-range :range [20 600]})
+    (not (integer? (:seed brief)))
+    (conj {:problem :integer-seed-required})
+    (some #(and (contains? brief %) (not (number? (get brief %)))) world/signal-keys)
+    (conj {:problem :signals-must-be-numeric})))
+
+(def motif-families
+  [[0 2 5 -1 4 2 -2 0]
+   [0 3 2 5 -2 2 -3 0]
+   [0 5 -2 2 3 -1 -4 0]
+   [0 2 3 -2 5 -3 2 0]])
+
+(defn- rotate [xs n]
+  (let [n (mod n (count xs))]
+    (vec (concat (drop n xs) (take n xs)))))
+
+(defn- choose-mode [signals final]
+  (cond
+    (> (:darkness signals) 0.68) :dorian
+    (> (final "Harmonic_Tension") 0.58) :minor
+    (> (:wonder signals) 0.62) :lydian
+    :else :major))
+
+(defn- orchestration [final signals]
+  (cond-> [:piano :strings]
+    (> (final "Orchestral_Narrative") 0.50) (conj :horns :woodwinds)
+    (> (:story-pressure signals) 0.62) (conj :timpani)
+    (> (:wonder signals) 0.60) (conj :harp)
+    (> (:intimacy signals) 0.68) (conj :solo-cello)))
+
+(defn- section-plan [duration]
+  (let [weights [[:opening 0.16] [:statement 0.22] [:development 0.25]
+                 [:peak 0.21] [:return 0.16]]]
+    (loop [cursor 0.0 [[id weight] & more] weights result []]
+      (if-not id
+        result
+        (let [end (if (seq more) (+ cursor (* duration weight)) (double duration))]
+          (recur end more (conj result {:section id :start-sec cursor :end-sec end})))))))
+
+(defn- midi-events [root motif bpm sections]
+  (let [step-sec (/ 60.0 bpm)
+        motif-notes (mapv #(+ root %) motif)]
+    (vec
+     (mapcat
+      (fn [{:keys [section start-sec end-sec]}]
+        (->> (cycle motif-notes)
+             (map-indexed (fn [i note]
+                            {:section section
+                             :at-sec (+ start-sec (* i step-sec))
+                             :duration-sec (* 0.82 step-sec)
+                             :midi-note (clamp-int 36 96 note)
+                             :velocity (if (= section :peak) 102 82)}))
+             (take-while #(< (:at-sec %) end-sec))))
+      sections))))
+
+(defn- render-prompt [{:keys [bpm meter mode orchestration]}]
+  (str "original cinematic game cue, " bpm " BPM, " meter " meter, "
+       (name mode) " modality, memorable short leitmotif with clear variation, "
+       "narrative orchestral arc, repetition-safe phrasing, "
+       (str/join ", " (map name orchestration))
+       ", instrumental, no quotation of existing melodies"))
+
+(defn compose
+  "Creates an original cue blueprint and render request from a brief.
+  It performs no network or audio I/O; the existing fleet host owns rendering."
+  ([brief] (compose (world/load-model) brief))
+  ([model brief]
+   (let [issues (validate-brief brief)]
+     (when (seq issues)
+       (throw (ex-info "Invalid composition brief" {:problems issues})))
+     (let [trajectory (world/simulate model brief)
+           final (:stocks (peek trajectory))
+           signals (world/normalize-signals brief)
+           seed (:seed brief)
+           motif (rotate (nth motif-families (mod seed (count motif-families)))
+                         (quot (Math/abs (long seed)) (count motif-families)))
+           bpm (clamp-int 58 148 (+ 68 (* 46 (:story-pressure signals))
+                                     (* 20 (final "Harmonic_Tension"))))
+           decision {:bpm bpm
+                     :meter (if (and (> (:wonder signals) 0.62)
+                                     (< (:story-pressure signals) 0.68)) "3/4" "4/4")
+                     :mode (choose-mode signals final)
+                     :orchestration (orchestration final signals)
+                     :motif-intervals motif
+                     :harmonic-plan (if (> (final "Harmonic_Tension") 0.55)
+                                      [:i :VI :iv :V :i]
+                                      [:I :vi :IV :V :I])}
+           sections (section-plan (:duration-sec brief))
+           events (midi-events (+ 48 (mod seed 12)) motif bpm sections)
+           prompt (render-prompt decision)]
+       {:actor/id actor-id
+        :actor/version 1
+        :world-model {:resource world/default-resource
+                      :name (:xmile/name model)
+                      :xmile-version (:xmile/version model)
+                      :method (get-in model [:xmile/sim :method])
+                      :final-stocks final}
+        :composition/brief brief
+        :composition/decision decision
+        :composition/sections sections
+        :score/events events
+        :render/request (sound-request prompt (:duration-sec brief) seed)
+        :audit {:original? true
+                :source-melodies []
+                :style-embeddings []
+                :artist-names-in-render-prompt? false
+                :principles [:leitmotif-development :orchestral-narrative
+                             :compact-melodic-identity :loop-durability]
+                :trajectory trajectory}}))))
+
+(def example-brief
+  {:title "星環の帰路" :duration-sec 96 :seed 2652
+   :story-pressure 0.72 :intimacy 0.66 :wonder 0.78 :darkness 0.32
+   :loop-need 0.74})
+
+(defn -main [& [brief-path]]
+  (let [brief (if brief-path (edn/read-string (slurp (io/file brief-path))) example-brief)]
+    (prn (compose brief))))

@@ -1,0 +1,12 @@
+(ns ongakuka.xmile-conformance
+  "Opt-in network verification against the official OASIS XMILE 1.0 XSD."
+  (:gen-class)
+  (:require [clojure.java.io :as io]
+            [ongakuka.world-model :as world]
+            [xmile.conformance :as conformance]))
+
+(defn -main [& _]
+  (let [resource (io/resource world/default-resource)
+        valid? (conformance/validate-xml (slurp resource))]
+    (prn {:resource world/default-resource
+          :official-oasis-xsd-valid? valid?})))
