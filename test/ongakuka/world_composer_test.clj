@@ -53,6 +53,14 @@
   (testing "short duration"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Invalid composition brief"
                           (actor/compose (assoc brief :duration-sec 4)))))
+  (testing "duration must be numeric"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Invalid composition brief"
+                          (actor/compose (assoc brief :duration-sec "96")))))
   (testing "seed must be reproducible"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Invalid composition brief"
                           (actor/compose (dissoc brief :seed))))))
+
+(deftest fractional-seconds-have-an-exact-millisecond-contract
+  (is (= 20500
+         (get-in (actor/compose (assoc brief :duration-sec 20.5))
+                 [:render/request :duration_ms]))))

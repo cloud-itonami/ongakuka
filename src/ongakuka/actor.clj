@@ -19,7 +19,7 @@
   [prompt duration-sec seed]
   {:type :sound
    :model sound-model
-   :duration_ms (* 1000 (long duration-sec))
+   :duration_ms (Math/round (* 1000.0 (double duration-sec)))
    :seed seed
    :prompt prompt})
 
@@ -29,7 +29,8 @@
   (cond-> []
     (not (string? (:title brief)))
     (conj {:problem :title-required})
-    (not (<= 20 (or (:duration-sec brief) 0) 600))
+    (not (and (number? (:duration-sec brief))
+              (<= 20 (:duration-sec brief) 600)))
     (conj {:problem :duration-out-of-range :range [20 600]})
     (not (integer? (:seed brief)))
     (conj {:problem :integer-seed-required})

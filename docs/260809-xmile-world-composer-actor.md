@@ -62,7 +62,7 @@ render request である。したがって offline test は作曲判断と event
 
 内蔵 96 秒 brief を `clojure -M:world-compose` で実行し、host 境界に
 `{:model "musicgen-small" :duration_ms 96000 :seed 2652}` が出ることを確認した。
-同一入力2回の actor 全出力一致、7 tests / 30 assertions、lint 0 errors / 0
+同一入力2回の actor 全出力一致、8 tests / 32 assertions、lint 0 errors / 0
 warnings。ここで測ったのは request の決定性と単位であり、host-owned rendererを
 呼んでいないため音声生成時間や音質の実測ではない。
 
