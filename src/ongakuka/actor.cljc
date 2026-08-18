@@ -1,10 +1,27 @@
 (ns ongakuka.actor
-  "Deterministic composer actor driven by the ongakuka XMILE world model."
-  (:gen-class)
-  (:require [clojure.edn :as edn]
-            [clojure.java.io :as io]
-            [clojure.string :as str]
-            [ongakuka.world-model :as world]))
+  "Deterministic composer actor driven by the ongakuka XMILE world model.
+
+  ## Why this is `.cljc` and not `.clj`
+
+  Almost nothing in here ever needed the JVM. `compose` is a pure function
+  from a brief to a blueprint, and its only impurity was reached through
+  `ongakuka.world-model`, which used `io/resource`. Three things were
+  genuinely JVM-shaped and are now conditional or gone:
+
+  - `:gen-class`, which exists only to make `-main` a Java entry point
+  - `-main` itself, which reads a brief file with `slurp`
+  - nothing else: `Math/round`, `Math/abs`, `double` and `long` all resolve
+    under ClojureScript, measured under nbb rather than assumed
+
+  The CLI (`clojure -M:world-compose`) is unchanged on the JVM. Under
+  ClojureScript the namespace simply has no `-main`, because there is no
+  ambient filesystem to read a brief from — a caller passes the brief map to
+  `compose` directly, which is what every consumer already does."
+  #?(:clj (:gen-class))
+  (:require [clojure.string :as str]
+            [ongakuka.world-model :as world]
+            #?(:clj [clojure.edn :as edn])
+            #?(:clj [clojure.java.io :as io])))
 
 (def actor-id "did:web:ongakuka.itonami.cloud:actor:world-composer")
 
@@ -146,6 +163,13 @@
    :story-pressure 0.72 :intimacy 0.66 :wonder 0.78 :darkness 0.32
    :loop-need 0.74})
 
-(defn -main [& [brief-path]]
-  (let [brief (if brief-path (edn/read-string (slurp (io/file brief-path))) example-brief)]
-    (prn (compose brief))))
+#?(:clj
+   (defn -main
+     "JVM entry point for `clojure -M:world-compose`. `:clj` only — it reads a
+     brief from the filesystem, and there is no portable way to do that. The
+     composer itself is portable; only this wrapper is not."
+     [& [brief-path]]
+     (let [brief (if brief-path
+                   (edn/read-string (slurp (io/file brief-path)))
+                   example-brief)]
+       (prn (compose brief)))))
