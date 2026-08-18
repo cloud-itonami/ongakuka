@@ -1,0 +1,171 @@
+(ns ongakuka.world-composer-test
+  "The composer, on both runtimes.
+
+  `clojure.lang.ExceptionInfo` is a JVM class name and does not exist under
+  ClojureScript, where `ex-info` produces a `cljs.core/ExceptionInfo` that
+  `thrown?`/`thrown-with-msg?` match as `js/Error`. Same assertions, spelled
+  for each reader — the reader conditional earning its keep rather than
+  papering over a difference."
+  (:require [clojure.test :refer [deftest is testing]]
+            [clojure.string :as str]
+            [ongakuka.actor :as actor]
+            [ongakuka.embedded :as embedded]
+            [ongakuka.world-model :as world]))
+
+(def brief
+  {:title "星環の帰路" :duration-sec 96 :seed 2652
+   :story-pressure 0.72 :intimacy 0.66 :wonder 0.78 :darkness 0.32
+   :loop-need 0.74})
+
+(deftest xmile-model-is-structurally-valid
+  (let [model (world/load-model)]
+    (is (world/valid? model) (pr-str (world/problems model)))
+    (is (= "1.0" (:xmile/version model)))
+    (is (= world/required-stocks (set (keys (:xmile/stocks model)))))
+    (is (= :euler (get-in model [:xmile/sim :method])))
+    (is (= 1.0 (get-in model [:xmile/parameters "originality_guard"])))
+    (is (= 1.0 (+ (get-in model [:xmile/parameters "cinematic_principle_weight"])
+                  (get-in model [:xmile/parameters "game_melodic_principle_weight"]))))))
+
+(deftest simulation-is-bounded-and-brief-responsive
+  (let [model (world/load-model)
+        quiet (world/simulate model (assoc brief :story-pressure 0.05))
+        urgent (world/simulate model (assoc brief :story-pressure 0.95))
+        urgent-final (:stocks (peek urgent))]
+    (is (= 25 (count urgent)))
+    (is (every? #(<= 0.0 % 1.0) (vals urgent-final)))
+    (is (> (get-in (peek urgent) [:stocks "Orchestral_Narrative"])
+           (get-in (peek quiet) [:stocks "Orchestral_Narrative"])))))
+
+(deftest actor-produces-deterministic-original-blueprint
+  (let [a (actor/compose brief)
+        b (actor/compose brief)
+        prompt (get-in a [:render/request :prompt])]
+    (is (= a b))
+    (is (= actor/actor-id (:actor/id a)))
+    (is (= {:model "musicgen-small"
+            :duration_ms 96000
+            :seed 2652}
+           (select-keys (:render/request a) [:model :duration_ms :seed])))
+    (is (nil? (get-in a [:render/request :duration-sec]))
+        "the host contract has one duration unit: integer milliseconds")
+    (is (seq (:score/events a)))
+    (is (every? #(< (:at-sec %) (:duration-sec brief)) (:score/events a)))
+    (is (= 8 (count (get-in a [:composition/decision :motif-intervals]))))
+    (is (true? (get-in a [:audit :original?])))
+    (is (empty? (get-in a [:audit :source-melodies])))
+    (is (not (re-find #"(?i)williams|uematsu|ウィリアムズ|植松" prompt)))
+    (is (str/includes? prompt "original cinematic game cue"))))
+
+(deftest invalid-brief-fails-closed
+  (testing "short duration"
+    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs js/Error) #"Invalid composition brief"
+                          (actor/compose (assoc brief :duration-sec 4)))))
+  (testing "duration must be numeric"
+    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs js/Error) #"Invalid composition brief"
+                          (actor/compose (assoc brief :duration-sec "96")))))
+  (testing "seed must be reproducible"
+    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs js/Error) #"Invalid composition brief"
+                          (actor/compose (dissoc brief :seed))))))
+
+(deftest fractional-seconds-have-an-exact-millisecond-contract
+  (is (= 20500
+         (get-in (actor/compose (assoc brief :duration-sec 20.5))
+                 [:render/request :duration_ms]))))
+
+
+;; ---------------------------------------------------------------------------
+;; Added with the 2026-08-18 `.clj` → `.cljc` conversion.
+;; ---------------------------------------------------------------------------
+
+(deftest the-embedded-document-is-what-the-model-is-built-from
+  (testing "`load-model` reads the compiled-in parsed XMILE document and
+            touches no file. The `.xmile` text is still the thing a human
+            edits; `clojure -M tools/gen_embedded.clj --check` is what stops
+            the two drifting"
+    (is (= (world/model-from-document embedded/document) (world/load-model)))
+    (is (world/valid? (world/model-from-document embedded/document)))))
+
+(deftest a-nil-document-does-not-become-an-empty-model
+  (testing "every `get` on nil is nil and `(into {} (filter …) nil)` is `{}`,
+            so a nil document would build a complete-looking model with no
+            stocks, no flows and no parameters — and `problems` would then
+            report it as a model MISSING ITS STOCKS, which is a different and
+            far more misleading finding than 'you passed nothing'"
+    (is (nil? (world/model-from-document nil))))
+  (testing "and a real document is not nil, or the above measured nothing"
+    (is (some? (world/model-from-document embedded/document)))))
+
+(deftest the-simulation-is-identical-on-both-runtimes
+  (testing "`xmile.execute` and `xmile.expr` branch on `Math` for every
+            operation, so this trajectory is floating point produced by two
+            DIFFERENT implementations. These five values were measured on the
+            JVM before the conversion and are pinned to 6 decimal places: if
+            the JVM and JavaScript ever disagree about this simulation, the
+            composer is not deterministic across runtimes and every
+            downstream claim about reproducible cues is false. Comparing the
+            trajectory to itself would have been a check with no failure
+            mode, which is the thing this sweep exists to remove"
+    (let [final (:stocks (peek (world/simulate (world/load-model) brief)))
+          round6 (fn [x] (/ (Math/round (* 1e6 (double x))) 1e6))]
+      (is (= 25 (count (world/simulate (world/load-model) brief))))
+      (is (= {"Harmonic_Tension" 0.426597
+              "Loop_Durability" 0.858306
+              "Melodic_Memorability" 0.815191
+              "Orchestral_Narrative" 0.697403
+              "Theme_Coherence" 0.751652}
+             (into {} (map (fn [[k v]] [k (round6 v)])) final))))))
+
+(deftest signals-default-rather-than-propagate-nil
+  (testing "`normalize-signals` fills every signal with 0.5 when the brief
+            does not name it, so a brief of nil yields a complete NEUTRAL
+            signal map rather than nil. That is deliberate — the defaults are
+            the contract — and it is safe only because `validate-brief`
+            rejects a nil brief before `compose` ever reaches here. Asserted
+            so the asymmetry with `model-from-document` is a decision on the
+            record rather than an inconsistency"
+    (is (= {:story-pressure 0.5 :intimacy 0.5 :wonder 0.5
+            :darkness 0.5 :loop-need 0.5}
+           (world/normalize-signals nil)))
+    (is (seq (actor/validate-brief nil))
+        "and a nil brief never reaches it: validation fails closed first")))
+
+;; Both of the tests below close a gap found by writing mutations BEFORE
+;; looking at the suite. Each mutation survived the original 8 tests, and each
+;; survivor was a real hole rather than a bad mutation.
+
+(deftest signals-outside-the-unit-interval-are-clamped
+  (testing "`validate-brief` requires signals to be NUMERIC but not to be in
+            range, so a brief may legitimately arrive carrying 5.0 or -3.0.
+            `normalize-signals` is the only thing standing between that and
+            the simulation. The original suite checked that stocks stay in
+            0..1 for a brief whose signals were ALREADY in 0..1, which the
+            clamp is not needed for — removing the clamp entirely went
+            unnoticed"
+    (is (= {:story-pressure 1.0 :intimacy 0.0 :wonder 1.0
+            :darkness 0.0 :loop-need 0.5}
+           (world/normalize-signals {:story-pressure 5.0 :intimacy -3.0
+                                     :wonder 1.7 :darkness -0.2})))
+    (is (= {:story-pressure 0.72 :intimacy 0.66 :wonder 0.78
+            :darkness 0.32 :loop-need 0.74}
+           (world/normalize-signals brief))
+        "and in-range signals pass through untouched, or the above measured
+         only that something happened"))
+  (testing "and the simulation stays bounded when handed a wild brief"
+    (let [wild (assoc brief :story-pressure 9.0 :darkness -4.0 :wonder 7.0)
+          final (:stocks (peek (world/simulate (world/load-model) wild)))]
+      (is (every? #(<= 0.0 % 1.0) (vals final))))))
+
+(deftest a-non-integer-seed-is-rejected
+  (testing "determinism is this actor's entire claim, and the seed is where it
+            lives: `(mod seed …)` and `(quot (Math/abs (long seed)) …)` pick
+            the motif family and its rotation. A float seed would compose
+            something, and `long` would silently truncate it — so 2652.5 and
+            2652.9 would yield the same cue while looking like different
+            requests. The original suite only tested a MISSING seed, so
+            loosening `integer?` to `number?` went unnoticed"
+    (is (seq (actor/validate-brief (assoc brief :seed 2652.5))))
+    (is (thrown? #?(:clj clojure.lang.ExceptionInfo :cljs js/Error)
+                 (actor/compose (assoc brief :seed 2652.5))))
+    (is (empty? (actor/validate-brief brief))
+        "and the real brief still validates, or the above measured nothing")))
