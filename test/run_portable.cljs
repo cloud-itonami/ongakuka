@@ -30,7 +30,38 @@
 ;; runs them, and a runner naming a subset prints the same `Ran N tests`
 ;; shape as one naming all of them.
 (require '[cljs.test :as t]
+         '[ongaku.catalog :as catalog]
          '[ongakuka.world-composer-test])
+
+(def excluded
+  "Namespace -> why it is not in the suite below.
+
+  A comment said this before, and a comment is not checked.
+  `verify-cljs-runner-completeness` in the superproject reads a `def` named
+  like this one and reports the entry as a DECLARED exclusion rather than as a
+  namespace nobody remembered. More to the point, a reason written as data can
+  be RE-CHECKED, which is the only thing that keeps an exclusion from
+  outliving its cause. `kotoba-lang/langgraph` does that with a
+  `:still-contains` substring; the reason here is behavioural, so it is
+  asserted directly below."
+  '{ongakuka.catalog-test
+    "calls ongaku.catalog/load-catalog, whose :cljs branch is a deliberate
+     throw in kotoba-lang/ongaku: `load-catalog needs host-provided EDN on
+     cljs`. Not something this repository can fix, and not a portability
+     accident -- the test file is ALREADY .cljc."})
+
+;; The exclusion, re-checked. If `load-catalog` ever gains a working `:cljs`
+;; branch this run fails, and the entry above has to be retired rather than
+;; quietly surviving its reason.
+(let [outcome (try (catalog/load-catalog) :returned
+                   (catch :default e (str (ex-message e))))]
+  (when-not (and (string? outcome)
+                 (.includes outcome "needs host-provided EDN on cljs"))
+    (println (str "STALE EXCLUSION: ongakuka.catalog-test is excluded because "
+                  "ongaku.catalog/load-catalog refuses on cljs, and it no longer "
+                  "does -- it answered " (pr-str outcome) ". Retire the entry and "
+                  "put the namespace in the suite."))
+    (set! (.-exitCode js/process) 1)))
 
 (defmethod t/report [:cljs.test/default :end-run-tests] [m]
   (when-not (t/successful? m) (set! (.-exitCode js/process) 1)))
