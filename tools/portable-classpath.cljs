@@ -13,7 +13,7 @@
 ;; running the portable suite failed with `Could not find namespace:
 ;; kotoba.dsl.problem` — a transitive dep two levels down that no amount of
 ;; reading this repo would have revealed.
-(require '["node:child_process" :as cp] '[clojure.string :as str])
+(require '["node:child_process" :as cp] '[kotoba.lang.text :as str])
 
 (let [paths (-> (.toString (cp/execSync "clojure -Spath"))
                 str/trim

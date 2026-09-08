@@ -14,7 +14,7 @@
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.java.shell :as shell]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [ongaku.coscientist :as cosci]
             [ongaku.genre :as genre]
             [ongaku.murakumo :as murakumo])
