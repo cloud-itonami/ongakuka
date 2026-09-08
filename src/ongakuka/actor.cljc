@@ -18,7 +18,7 @@
   ambient filesystem to read a brief from — a caller passes the brief map to
   `compose` directly, which is what every consumer already does."
   #?(:clj (:gen-class))
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [ongakuka.world-model :as world]
             #?(:clj [clojure.edn :as edn])
             #?(:clj [clojure.java.io :as io])))

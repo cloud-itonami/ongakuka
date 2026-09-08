@@ -7,7 +7,7 @@
   for each reader — the reader conditional earning its keep rather than
   papering over a difference."
   (:require [clojure.test :refer [deftest is testing]]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [ongakuka.actor :as actor]
             [ongakuka.embedded :as embedded]
             [ongakuka.world-model :as world]))

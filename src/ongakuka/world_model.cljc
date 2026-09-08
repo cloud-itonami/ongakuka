@@ -29,7 +29,7 @@
   them drift. There is no runtime read, so there is no read that can fail and
   no `readable?`-style guard — such a check could only ever answer true."
   (:require [clojure.set :as set]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [ongakuka.embedded :as embedded]
             [xmile.execute :as execute]
             [xmile.validate :as validate]))
