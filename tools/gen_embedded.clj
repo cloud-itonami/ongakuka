@@ -37,7 +37,7 @@
 ;; the runtime not need a parser. The exception is deliberate and confined to
 ;; build time; nothing at runtime touches it.
 (require '[clojure.java.io :as io]
-         '[clojure.string :as str]
+         '[kotoba.lang.text :as str]
          '[xmile.xml :as xml])
 
 (def xmile-path "resources/models/cinematic-game-composer.xmile")

@@ -20,7 +20,7 @@
 ;;   ONGAKUKA_AUDIO_GEN_SSH=gad ONGAKUKA_AUDIO_GEN_CMD='...' nbb ...
 
 (ns coscientist-murakumo
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [clojure.edn :as edn]
             ["fs" :as fs]
             ["path" :as path]
