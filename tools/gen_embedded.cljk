@@ -1,8 +1,8 @@
 ;; Generate `src/ongakuka/embedded.cljk` from
 ;; `resources/models/cinematic-game-composer.xmile`.
 ;;
-;;   clojure -M tools/gen_embedded.cljk           # write
-;;   clojure -M tools/gen_embedded.cljk --check   # exit 1 if stale, 2 if it cannot tell
+;;   kbb -M tools/gen_embedded.cljk           # write
+;;   kbb -M tools/gen_embedded.cljk --check   # exit 1 if stale, 2 if it cannot tell
 ;;
 ;; ## Why embed, and why the PARSED tree rather than the XML text
 ;;
@@ -29,7 +29,7 @@
 ;;
 ;; ## Why this generator is `.clj` and not nbb
 ;;
-;; Every other generator in this sweep is `nbb tools/gen-embedded.cljs`, per
+;; Every other generator in this sweep is `kbb --backend sci tools/gen-embedded.cljk`, per
 ;; the workspace's script-host rule. This one cannot be: producing the parsed
 ;; tree requires an XML parser, and the only one available here is the JVM's.
 ;; Writing it in nbb would mean adding an npm DOM shim to a repo that has no
@@ -45,7 +45,7 @@
 
 (defn- render [doc]
   (str ";; GENERATED — do not edit. Source: " xmile-path "\n"
-       ";; Regenerate: clojure -M tools/gen_embedded.cljk   Check: --check\n"
+       ";; Regenerate: kbb -M tools/gen_embedded.cljk   Check: --check\n"
        ";;\n"
        ";; The PARSED XMILE document, not the XML text: `xmile.xml`'s `:cljs`\n"
        ";; parser needs `js/DOMParser`, which does not exist under nbb. This is\n"
@@ -71,5 +71,5 @@
                          (println "wrote" out-path (count want) "bytes"))
         (= want have) (println "OK" out-path "matches" xmile-path)
         :else (do (println "STALE" out-path "does not match" xmile-path
-                           "— run: clojure -M tools/gen_embedded.cljk")
+                           "— run: kbb -M tools/gen_embedded.cljk")
                   (System/exit 1))))))

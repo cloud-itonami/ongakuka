@@ -1,7 +1,7 @@
-#!/usr/bin/env nbb
+#!/usr/bin/env kbb
 ;; Print an nbb classpath for `test/run_portable.cljk`.
 ;;
-;;   nbb --classpath "$(nbb tools/portable-classpath.cljk)" test/run_portable.cljk
+;;   kbb --backend sci --classpath "$(kbb --backend sci tools/portable-classpath.cljk)" test/run_portable.cljk
 ;;
 ;; nbb does not resolve `deps.edn` git deps, and this repo's portable half
 ;; needs three of them on the classpath as SOURCE (`org-oasis-open-xmile`,
@@ -15,11 +15,11 @@
 ;; reading this repo would have revealed.
 (require '["node:child_process" :as cp] '[kotoba.lang.text :as str])
 
-(let [paths (-> (.toString (cp/execSync "clojure -Spath"))
+(let [paths (-> (.toString (cp/execSync "kbb -Spath"))
                 str/trim
                 (str/split #":"))
       dirs (remove #(str/ends-with? % ".jar") paths)]
   (when (empty? dirs)
-    (println "Refusing to answer: clojure -Spath returned no directories")
+    (println "Refusing to answer: kbb -Spath returned no directories")
     (set! (.-exitCode js/process) 2))
   (println (str/join ":" (cons "test" dirs))))

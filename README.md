@@ -47,7 +47,7 @@ Public enqueue (queue visibility; workers may not claim yet):
 
 ```bash
 MURAKUMO_TOKEN_SECRET=$(kagi get MURAKUMO_GENERATION_TOKEN_SECRET) \
-  clojure -M:token issue ongakuka-cosci generation 7200   # in cloud-murakumo
+  kbb -M:token issue ongakuka-cosci generation 7200   # in cloud-murakumo
 # POST https://generation.murakumo.cloud/api/v1/generation
 #   {"type":"sound","model":"musicgen-small",...}
 ```
@@ -81,13 +81,13 @@ sound request は host の暗黙 default を許さず、`:model`、`:duration_ms
 
 ```bash
 # 内蔵 brief で EDN cue blueprint を生成
-clojure -M:world-compose
+kbb -M:world-compose
 
 # または brief.edn を渡す（20–600秒、integer seed 必須）
-clojure -M:world-compose brief.edn
+kbb -M:world-compose brief.edn
 
 # network opt-in: 公式 OASIS XMILE 1.0 XSD で検証
-clojure -M:xmile-conformance
+kbb -M:xmile-conformance
 ```
 
 ## sakkyokuka との境界
@@ -122,9 +122,9 @@ ongakuka も音を作る —— 違うのは、作った音を**自分のカタ�
 
 ```bash
 # craft lib (includes coscientist offline tests)
-cd ../../kotoba-lang/ongaku && clojure -M:test
+cd ../../kotoba-lang/ongaku && kbb -M:test
 # catalog repo
-clojure -M:dev:test
+kbb -M:dev:test
 ```
 
 ## 由来

@@ -1,4 +1,4 @@
-#!/usr/bin/env nbb
+#!/usr/bin/env kbb
 ;; coscientist-murakumo.cljs — ongakuka ReAct / Co-Scientist music loop on
 ;; the murakumo generation fleet.
 ;;
@@ -7,13 +7,13 @@
 ;;
 ;; Usage:
 ;;   MURAKUMO_GENERATION_TOKEN=mk1... \
-;;   nbb --classpath "src:../../kotoba-lang/ongaku/src" \
+;;   kbb --backend sci --classpath "src:../../kotoba-lang/ongaku/src" \
 ;;     scripts/coscientist_murakumo.cljs.cljk \
 ;;     --genre freetempo-club --generations 2 --candidates 3 --seconds 8
 ;;
 ;; Token mint:
 ;;   MURAKUMO_TOKEN_SECRET=$(kagi get MURAKUMO_GENERATION_TOKEN_SECRET) \
-;;     clojure -M:token issue ongakuka-cosci generation 7200
+;;     kbb -M:token issue ongakuka-cosci generation 7200
 ;;   (from orgs/gftdcojp/cloud-murakumo)
 ;;
 ;; Optional fleet-direct path (bypasses queue when workers are cold):

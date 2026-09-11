@@ -13,7 +13,7 @@
   - nothing else: `Math/round`, `Math/abs`, `double` and `long` all resolve
     under ClojureScript, measured under nbb rather than assumed
 
-  The CLI (`clojure -M:world-compose`) is unchanged on the JVM. Under
+  The CLI (`kbb -M:world-compose`) is unchanged on the JVM. Under
   ClojureScript the namespace simply has no `-main`, because there is no
   ambient filesystem to read a brief from — a caller passes the brief map to
   `compose` directly, which is what every consumer already does."
@@ -165,7 +165,7 @@
 
 #?(:clj
    (defn -main
-     "JVM entry point for `clojure -M:world-compose`. `:clj` only — it reads a
+     "JVM entry point for `kbb -M:world-compose`. `:clj` only — it reads a
      brief from the filesystem, and there is no portable way to do that. The
      composer itself is portable; only this wrapper is not."
      [& [brief-path]]

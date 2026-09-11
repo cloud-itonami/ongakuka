@@ -1,10 +1,10 @@
-#!/usr/bin/env bb
+#!/usr/bin/env kbb
 ;; ongakuka coscientist on murakumo fleet (babashka / nbb-compat host).
-;; Prefer: clojure -M:cosci  (see deps.edn :cosci alias) when bb is unavailable.
+;; Prefer: kbb -M:cosci  (see deps.edn :cosci alias) when bb is unavailable.
 ;;
 ;;   MURAKUMO_GENERATION_TOKEN=mk1... \
 ;;   ONGAKUKA_AUDIO_GEN_SSH=gad \
-;;   clojure -M:dev:cosci --genre freetempo-club --generations 1 --candidates 2 --seconds 6
+;;   kbb -M:dev:cosci --genre freetempo-club --generations 1 --candidates 2 --seconds 6
 ;;
 ;; Fleet-direct path is the production path until cloud-murakumo workers claim
 ;; :music jobs with audio-gen on PATH. Public API submit is attempted first
