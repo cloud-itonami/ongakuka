@@ -81,7 +81,7 @@
 (deftest the-embedded-document-is-what-the-model-is-built-from
   (testing "`load-model` reads the compiled-in parsed XMILE document and
             touches no file. The `.xmile` text is still the thing a human
-            edits; `clojure -M tools/gen_embedded.cljk --check` is what stops
+            edits; `kbb -M tools/gen_embedded.cljk --check` is what stops
             the two drifting"
     (is (= (world/model-from-document embedded/document) (world/load-model)))
     (is (world/valid? (world/model-from-document embedded/document)))))

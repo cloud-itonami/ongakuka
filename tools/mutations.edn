@@ -16,7 +16,7 @@
 ;; anything in `scripts/`. A clean run means "the composer is measured", NOT
 ;; "this repo is measured".
 ;;
-;; ⚠ These mutations run `clojure -M:test`, i.e. the `:clj` branch only, and
+;; ⚠ These mutations run `kbb -M:test`, i.e. the `:clj` branch only, and
 ;; that matters more here than usual: `xmile.execute` and `xmile.expr` branch
 ;; on `Math` for EVERY arithmetic operation, so the simulation is two
 ;; different floating-point implementations. `test/run_portable.cljk` is what
