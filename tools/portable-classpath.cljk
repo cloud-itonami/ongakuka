@@ -1,7 +1,7 @@
 #!/usr/bin/env nbb
-;; Print an nbb classpath for `test/run_portable.cljs`.
+;; Print an nbb classpath for `test/run_portable.cljk`.
 ;;
-;;   nbb --classpath "$(nbb tools/portable-classpath.cljs)" test/run_portable.cljs
+;;   nbb --classpath "$(nbb tools/portable-classpath.cljk)" test/run_portable.cljk
 ;;
 ;; nbb does not resolve `deps.edn` git deps, and this repo's portable half
 ;; needs three of them on the classpath as SOURCE (`org-oasis-open-xmile`,

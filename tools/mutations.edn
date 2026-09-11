@@ -1,5 +1,5 @@
 ;; One mutation per invariant. `:find` must occur EXACTLY ONCE in `:file` —
-;; `tools/mutate.cljs` refuses otherwise, because a mutation that landed in a
+;; `tools/mutate.cljk` refuses otherwise, because a mutation that landed in a
 ;; comment or a second call site produces a red suite that proves nothing.
 ;;
 ;; ## SCOPE
@@ -19,7 +19,7 @@
 ;; ⚠ These mutations run `clojure -M:test`, i.e. the `:clj` branch only, and
 ;; that matters more here than usual: `xmile.execute` and `xmile.expr` branch
 ;; on `Math` for EVERY arithmetic operation, so the simulation is two
-;; different floating-point implementations. `test/run_portable.cljs` is what
+;; different floating-point implementations. `test/run_portable.cljk` is what
 ;; runs the other one. Run both.
 ;;
 ;; Note what is NOT in this table: a `readable?` / "nil means nobody could
@@ -48,62 +48,62 @@
 ;; 10 killed, 0 survived, 0 unmeasured.
 [{:id :the-projection-cannot-drift-unnoticed
   :invariant "the compiled-in document matches the .xmile a human edits"
-  :file "src/ongakuka/embedded.cljc"
+  :file "src/ongakuka/embedded.cljk"
   :find "\"originality_guard\" #:xmile{:name \"originality_guard\", :eqn \"1\""
   :replace "\"originality_guard\" #:xmile{:name \"originality_guard\", :eqn \"0\""}
 
  {:id :a-nil-document-does-not-become-an-empty-model
   :invariant "`(into {} (filter …) nil)` is {} — a model missing its stocks is
               a different finding from no model at all"
-  :file "src/ongakuka/world_model.cljc"
+  :file "src/ongakuka/world_model.cljk"
   :find "  (when (some? document)\n    (let [raw-model"
   :replace "  (do\n    (let [raw-model"}
 
  {:id :the-model-is-built-from-the-embedded-document
   :invariant "load-model reads the projection and not something else"
-  :file "src/ongakuka/world_model.cljc"
+  :file "src/ongakuka/world_model.cljk"
   :find "  ([] (model-from-document embedded/document)))"
   :replace "  ([] (model-from-document (assoc embedded/document :xmile/models []))))"}
 
  {:id :the-originality-guard-is-enforced
   :invariant "a model with the originality guard off is INVALID — this actor's
               whole claim is that it does not quote existing melodies"
-  :file "src/ongakuka/world_model.cljc"
+  :file "src/ongakuka/world_model.cljk"
   :find "      (not= 1.0 (get-in model [:xmile/parameters \"originality_guard\"]))"
   :replace "      (not= 2.0 (get-in model [:xmile/parameters \"originality_guard\"]))"}
 
  {:id :signals-are-clamped-into-the-unit-interval
   :invariant "a brief cannot drive a stock outside 0..1 by supplying a wild signal"
-  :file "src/ongakuka/world_model.cljc"
+  :file "src/ongakuka/world_model.cljk"
   :find "(defn- clamp [x] (max 0.0 (min 1.0 x)))"
   :replace "(defn- clamp [x] x)"}
 
  {:id :the-render-contract-is-integer-milliseconds
   :invariant "the host contract has one duration unit and it is not seconds"
-  :file "src/ongakuka/actor.cljc"
+  :file "src/ongakuka/actor.cljk"
   :find "   :duration_ms (Math/round (* 1000.0 (double duration-sec)))"
   :replace "   :duration_ms (long duration-sec)"}
 
  {:id :the-brief-duration-has-a-floor
   :invariant "a 4-second cue is rejected, not silently composed"
-  :file "src/ongakuka/actor.cljc"
+  :file "src/ongakuka/actor.cljk"
   :find "              (<= 20 (:duration-sec brief) 600)))"
   :replace "              (<= 0 (:duration-sec brief) 600)))"}
 
  {:id :the-seed-must-be-an-integer
   :invariant "determinism: a float or absent seed is rejected"
-  :file "src/ongakuka/actor.cljc"
+  :file "src/ongakuka/actor.cljk"
   :find "    (not (integer? (:seed brief)))"
   :replace "    (not (number? (:seed brief)))"}
 
  {:id :the-motif-is-eight-intervals
   :invariant "a leitmotif this actor claims to develop has a fixed shape"
-  :file "src/ongakuka/actor.cljc"
+  :file "src/ongakuka/actor.cljk"
   :find "  [[0 2 5 -1 4 2 -2 0]"
   :replace "  [[0 2 5 -1 4 2 -2]"}
 
  {:id :the-render-prompt-names-no-artist
   :invariant "the prompt must not steer the model at a named composer"
-  :file "src/ongakuka/actor.cljc"
+  :file "src/ongakuka/actor.cljk"
   :find "  (str \"original cinematic game cue, \" bpm \" BPM, \" meter \" meter, \""
   :replace "  (str \"in the style of John Williams, \" bpm \" BPM, \" meter \" meter, \""}]

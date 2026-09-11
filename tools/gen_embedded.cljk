@@ -1,8 +1,8 @@
-;; Generate `src/ongakuka/embedded.cljc` from
+;; Generate `src/ongakuka/embedded.cljk` from
 ;; `resources/models/cinematic-game-composer.xmile`.
 ;;
-;;   clojure -M tools/gen_embedded.clj           # write
-;;   clojure -M tools/gen_embedded.clj --check   # exit 1 if stale, 2 if it cannot tell
+;;   clojure -M tools/gen_embedded.cljk           # write
+;;   clojure -M tools/gen_embedded.cljk --check   # exit 1 if stale, 2 if it cannot tell
 ;;
 ;; ## Why embed, and why the PARSED tree rather than the XML text
 ;;
@@ -41,11 +41,11 @@
          '[xmile.xml :as xml])
 
 (def xmile-path "resources/models/cinematic-game-composer.xmile")
-(def out-path "src/ongakuka/embedded.cljc")
+(def out-path "src/ongakuka/embedded.cljk")
 
 (defn- render [doc]
   (str ";; GENERATED — do not edit. Source: " xmile-path "\n"
-       ";; Regenerate: clojure -M tools/gen_embedded.clj   Check: --check\n"
+       ";; Regenerate: clojure -M tools/gen_embedded.cljk   Check: --check\n"
        ";;\n"
        ";; The PARSED XMILE document, not the XML text: `xmile.xml`'s `:cljs`\n"
        ";; parser needs `js/DOMParser`, which does not exist under nbb. This is\n"
@@ -71,5 +71,5 @@
                          (println "wrote" out-path (count want) "bytes"))
         (= want have) (println "OK" out-path "matches" xmile-path)
         :else (do (println "STALE" out-path "does not match" xmile-path
-                           "— run: clojure -M tools/gen_embedded.clj")
+                           "— run: clojure -M tools/gen_embedded.cljk")
                   (System/exit 1))))))

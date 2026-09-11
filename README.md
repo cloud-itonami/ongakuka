@@ -28,7 +28,7 @@ loop。
 |---|---|
 | pure loop / genre / audit / murakumo contract | `kotoba-lang/ongaku` (`ongaku.coscientist` 等) |
 | fleet runner (Python) | `scripts/run_coscientist_fleet.py` |
-| fleet runner (Clojure) | `scripts/coscientist_murakumo.clj` |
+| fleet runner (Clojure) | `scripts/coscientist_murakumo.clj.cljk` |
 | worker (`audio-gen`) | `scripts/audio_gen.py` → **gad** `/home/gad/bin/audio-gen` |
 | murakumo music models | `cloud-murakumo` `:music` default + **quality-authority = `musicgen-small`** |
 | ACE-Step | installed on gad (`audio-gen-ace`) but **experimental-non-adopted** (ear quality below MusicGen; ADR-2607171900 addendum 2026-07-18) |
