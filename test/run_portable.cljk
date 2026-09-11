@@ -1,10 +1,10 @@
 #!/usr/bin/env nbb
 ;; The portable suite on nbb — no build step, no JVM.
 ;;
-;;   nbb --classpath src:test:<xmile>/src test/run_portable.cljs
+;;   nbb --classpath src:test:<xmile>/src test/run_portable.cljk
 ;;
 ;; The classpath needs `kotoba-lang/org-oasis-open-xmile`'s `src`, because
-;; nbb does not resolve `deps.edn` git deps. `tools/portable-classpath.cljs`
+;; nbb does not resolve `deps.edn` git deps. `tools/portable-classpath.cljk`
 ;; prints a working one.
 ;;
 ;; ## Why only `ongakuka.world-composer-test`

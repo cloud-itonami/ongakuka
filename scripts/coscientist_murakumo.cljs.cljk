@@ -8,7 +8,7 @@
 ;; Usage:
 ;;   MURAKUMO_GENERATION_TOKEN=mk1... \
 ;;   nbb --classpath "src:../../kotoba-lang/ongaku/src" \
-;;     scripts/coscientist_murakumo.cljs \
+;;     scripts/coscientist_murakumo.cljs.cljk \
 ;;     --genre freetempo-club --generations 2 --candidates 3 --seconds 8
 ;;
 ;; Token mint:

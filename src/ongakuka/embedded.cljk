@@ -1,5 +1,5 @@
 ;; GENERATED — do not edit. Source: resources/models/cinematic-game-composer.xmile
-;; Regenerate: clojure -M tools/gen_embedded.clj   Check: --check
+;; Regenerate: clojure -M tools/gen_embedded.cljk   Check: --check
 ;;
 ;; The PARSED XMILE document, not the XML text: `xmile.xml`'s `:cljs`
 ;; parser needs `js/DOMParser`, which does not exist under nbb. This is
