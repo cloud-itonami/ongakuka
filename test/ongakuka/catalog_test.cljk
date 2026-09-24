@@ -1,7 +1,7 @@
 (ns ongakuka.catalog-test
   "Smoke tests: the private gftd catalog loads and composes through the
   kotoba-lang/ongaku craft lib (legacy :ongakuka.catalog/* keys)."
-  (:require [clojure.test :refer [deftest is]]
+  (:require [kotoba.test :refer [deftest is]]
             [ongaku.catalog :as catalog]
             [ongaku.compose :as compose]
             [ongaku.policy :as policy]))
