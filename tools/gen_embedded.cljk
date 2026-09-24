@@ -36,7 +36,7 @@
 ;; `package.json` in order to generate a file whose whole purpose is to make
 ;; the runtime not need a parser. The exception is deliberate and confined to
 ;; build time; nothing at runtime touches it.
-(require '[clojure.java.io :as io]
+(require '[kotoba.io :as io]
          '[kotoba.lang.text :as str]
          '[xmile.xml :as xml])
 
@@ -58,12 +58,12 @@
 (let [args (vec *command-line-args*)
       check? (some #{"--check"} args)
       f (io/file xmile-path)]
-  (if-not (.exists f)
+  (if-not (io/exists? f)
     (do (println "SCANNED\t0")
         (println "Refusing to answer: no" xmile-path "— run this from the repo root")
         (System/exit 2))
     (let [want (render (xml/parse-string (slurp f)))
-          have (when (.exists (io/file out-path)) (slurp out-path))]
+          have (when (io/exists? (io/file out-path)) (slurp out-path))]
       (println "SCANNED\t1")
       (cond
         (not check?) (do (io/make-parents out-path)
