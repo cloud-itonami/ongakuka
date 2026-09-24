@@ -6,7 +6,7 @@
   `thrown?`/`thrown-with-msg?` match as `js/Error`. Same assertions, spelled
   for each reader — the reader conditional earning its keep rather than
   papering over a difference."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [kotoba.lang.text :as str]
             [ongakuka.actor :as actor]
             [ongakuka.embedded :as embedded]
