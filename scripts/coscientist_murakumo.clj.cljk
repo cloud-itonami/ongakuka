@@ -11,7 +11,7 @@
 ;; when a token is present.
 
 (ns coscientist-murakumo
-  (:require [kotoba.lang.edn :as edn]
+  (:require [kotoba.bytes :as kbytes] [kotoba.lang.edn :as edn]
             [clojure.java.io :as io]
             [clojure.java.shell :as shell]
             [kotoba.lang.text :as str]
@@ -19,9 +19,7 @@
             [ongaku.genre :as genre]
             [ongaku.murakumo :as murakumo])
   (:import [java.net URI HttpURLConnection]
-           [java.nio.charset StandardCharsets]
-           [java.time Instant]
-           [java.util Base64]))
+           [java.time Instant]))
 
 (defn env [k d]
   (or (System/getenv k) d))
@@ -53,7 +51,7 @@
     (when body-str
       (.setDoOutput true)
       (with-open [os (.getOutputStream conn)]
-        (.write os (.getBytes ^String body-str StandardCharsets/UTF_8))))
+        (.write os (kbytes/utf8-bytes ^String body-str))))
     (let [status (.getResponseCode conn)
           stream (try (.getInputStream conn)
                       (catch Exception _ (.getErrorStream conn)))
@@ -61,7 +59,7 @@
                   (with-open [in stream]
                     (.readAllBytes in))
                   (byte-array 0))
-          body (String. ^bytes bytes StandardCharsets/UTF_8)]
+          body (kbytes/utf8-string ^bytes bytes)]
       (.disconnect conn)
       {:status status :body-bytes bytes :body-str body})))
 
