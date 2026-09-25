@@ -1,7 +1,7 @@
 (ns ongakuka.xmile-conformance
   "Opt-in network verification against the official OASIS XMILE 1.0 XSD."
   (:gen-class)
-  (:require [clojure.java.io :as io]
+  (:require [kotoba.io :as io]
             [ongakuka.world-model :as world]
             [xmile.conformance :as conformance]))
 
