@@ -46,8 +46,10 @@
         ;; ongaku craft lib (ADR-2607023000) — BGM 選定 + ライセンスポリシー gate。
         ;; この repo は private カタログ実体（DOVA/incompetech 由来 asset 台帳と
         ;; チャンネル roster）だけを持つ。
-        io.github.kotoba-lang/ongaku {:git/url "https://github.com/kotoba-lang/ongaku"
-                                      :git/sha "117b4fe178ec4dfda55ea7de18a3fc4cd95a899d"}
+        io.github.kotoba-lang/ongaku
+        {:git/url "https://github.com/kotoba-lang/kotoba.git"
+         :git/sha "38654600c00caea2caec9ec0650625f2f6a69378"
+         :deps/root "lib/kotoba.ongaku"}
         io.github.kotoba-lang/org-oasis-open-xmile
         {:git/url "https://github.com/kotoba-lang/kotoba.git"
          :git/sha "325baa31020aa214bd17cb39e3803712f92f5a1a"
@@ -56,7 +58,8 @@
  {;; Workspace development — use the local lib checkout (no git fetch).
   :dev
   {:override-deps
-   {io.github.kotoba-lang/ongaku {:local/root "../../kotoba-lang/ongaku"}}}
+   {io.github.kotoba-lang/ongaku
+        {:local/root "../../kotoba-lang/kotoba/lib/kotoba.ongaku"}}}
 
   :test {:extra-paths ["test"]
          :extra-deps {io.github.cognitect-labs/test-runner
