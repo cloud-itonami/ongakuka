@@ -32,8 +32,9 @@
         io.github.kotoba-lang/ongaku {:git/url "https://github.com/kotoba-lang/ongaku"
                                       :git/sha "117b4fe178ec4dfda55ea7de18a3fc4cd95a899d"}
         io.github.kotoba-lang/org-oasis-open-xmile
-        {:git/url "https://github.com/kotoba-lang/org-oasis-open-xmile"
-         :git/sha "9a703008784b2c46d2f7289d78438c450b47d906"}}
+        {:git/url "https://github.com/kotoba-lang/kotoba.git"
+         :git/sha "325baa31020aa214bd17cb39e3803712f92f5a1a"
+         :deps/root "lib/org.oasisOpen.xmile"}}
  :aliases
  {;; Workspace development — use the local lib checkout (no git fetch).
   :dev
